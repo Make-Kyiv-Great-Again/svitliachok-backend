@@ -1,0 +1,29 @@
+services:
+  api:
+    build: .
+    container_name: svitliachok_api_dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+  db:
+    image: pgrouting/pgrouting:latest
+    container_name: svitliachok_db_dev
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: db
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+
+volumes:
+  pgdata_dev:
