@@ -54,7 +54,7 @@ jobs:
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           source: "docker-compose.prod.yml,init-scripts/"
-          target: "/opt/svitliachok-backend"
+          target: "/root/svitliachok-backend"
           strip_components: 0
 
       - name: Deploy to VPS
@@ -64,6 +64,6 @@ jobs:
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            cd /opt/svitliachok-backend
+            cd /root/svitliachok-backend
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d
