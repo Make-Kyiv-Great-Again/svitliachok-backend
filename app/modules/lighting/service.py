@@ -54,11 +54,11 @@ _SQL_BLACKOUT_GEO_OBOLON = text(
     """
 )
 
-# 3. Safe-haven reward — streets near a running generator get a 0.5× bonus.
+# 3. Safe-haven reward — streets near a running generator get a 0.1× bonus.
 _SQL_SAFE_HAVEN = text(
     """
     UPDATE svitliachok_2po_4pgr AS e
-    SET    dynamic_cost = e.dynamic_cost * 0.5
+    SET    dynamic_cost = e.dynamic_cost * 0.1
     WHERE  EXISTS (
         SELECT 1
         FROM   businesses b
@@ -66,7 +66,7 @@ _SQL_SAFE_HAVEN = text(
         AND    ST_DWithin(
                    e.geom_way::geography,
                    b.geom::geography,
-                   50          -- metres
+                   100         -- metres
                )
     )
     """

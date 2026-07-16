@@ -145,4 +145,4 @@ async def health() -> dict:
 @app.get("/demo", tags=["Demo"])
 async def serve_demo():
     """Serves the frontend Svitliachok Demo HTML file."""
-    return FileResponse("map-demo.html")
+    return FileResponse("static/demo.html")
