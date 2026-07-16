@@ -1,23 +1,10 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.modules.lighting.service import run_cost_update
-from app.modules.lighting.schema import LocationRequest
 
 router = APIRouter()
-
-
-@router.post(
-    "/trigger",
-    status_code=200,
-    summary="Manually trigger a lighting cost update (dev / debug)",
-)
-async def trigger_update() -> dict:
-    """Force-runs the same job the scheduler calls every 2 minutes."""
-    await run_cost_update()
-    return {"status": "ok", "message": "dynamic_cost updated"}
 
 
 # Streets whose dynamic_cost has been penalised (i.e. they are in a blackout zone).
@@ -55,12 +42,13 @@ _SQL_DARK_STREETS = text(
 )
 
 
-@router.post(
+@router.get(
     "/dark-streets",
     summary="Get GeoJSON of street segments currently in a blackout / low-light zone within 5km",
 )
 async def get_dark_streets(
-    location: LocationRequest,
+    lat: float = Query(..., description="Latitude"),
+    lon: float = Query(..., description="Longitude"),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """
@@ -77,7 +65,7 @@ async def get_dark_streets(
     """
     result = await db.execute(
         _SQL_DARK_STREETS,
-        {"lat": location.lat, "lon": location.lon}
+        {"lat": lat, "lon": lon}
     )
     row = result.one_or_none()
     if row is None:

@@ -44,31 +44,6 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # ── Startup ──────────────────────────────────────────────────────────
-    logger.info("Running database migrations (create_all)…")
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-    # -- Ensure dynamic_cost column exists on the pre-existing pgRouting table.
-    # osm2po does NOT create this column, so we add it idempotently at startup.
-    async with SessionLocal() as db:
-        try:
-            logger.info("Ensuring dynamic_cost column exists on svitliachok_2po_4pgr…")
-            async with db.begin():
-                # Add columns if missing
-                await db.execute(text(
-                    "ALTER TABLE IF EXISTS svitliachok_2po_4pgr "
-                    "ADD COLUMN IF NOT EXISTS dynamic_cost float8, "
-                    "ADD COLUMN IF NOT EXISTS is_blackout boolean DEFAULT false"
-                ))
-                # Set initial value to default cost
-                await db.execute(text(
-                    "UPDATE svitliachok_2po_4pgr "
-                    "SET is_blackout = false WHERE is_blackout IS NULL"
-                ))
-            logger.info("dynamic_cost and is_blackout columns ready.")
-        except Exception as e:
-            logger.error(f"Failed to prepare svitliachok_2po_4pgr table: {e}")
-
     logger.info("Starting APScheduler — lighting cost update every 2 minutes")
     scheduler = AsyncIOScheduler()
     scheduler.add_job(

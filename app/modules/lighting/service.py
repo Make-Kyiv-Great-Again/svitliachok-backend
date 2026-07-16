@@ -35,7 +35,7 @@ _SQL_RESET = text(
 )
 
 # 2a. Geographic blackout zone (Podil, Kyiv).
-_SQL_BLACKOUT_GEO = text(
+_SQL_BLACKOUT_GEO_PODIL = text(
     """
     UPDATE svitliachok_2po_4pgr
     SET    dynamic_cost = cost * 5.0,
@@ -84,7 +84,7 @@ async def run_cost_update() -> None:
         try:
             async with db.begin():          # auto-commits or rolls back
                 await db.execute(_SQL_RESET)
-                await db.execute(_SQL_BLACKOUT_GEO)   # geographic zone (Podil)
+                await db.execute(_SQL_BLACKOUT_GEO_PODIL)   # geographic zone (Podil)
                 await db.execute(_SQL_BLACKOUT_GEO_OBOLON) # geographic zone (Obolon)
                 await db.execute(_SQL_SAFE_HAVEN)
             logger.info("dynamic_cost updated successfully")

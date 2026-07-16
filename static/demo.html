@@ -263,14 +263,7 @@ async function loadOverlays() {
 
   // Dark streets — yellow lines where dynamic_cost > cost (mock: ~40% of all streets)
   try {
-    const res = await fetch(`${base}/api/v1/lighting/dark-streets`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        lat: window.userLocation.lat,
-        lon: window.userLocation.lng
-      })
-    });
+    const res = await fetch(`${base}/api/v1/lighting/dark-streets?lat=${window.userLocation.lat}&lon=${window.userLocation.lng}`);
     const gj    = await res.json();
     const count = gj.features?.length ?? 0;
 
