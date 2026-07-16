@@ -9,6 +9,9 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     env_file:
       - .env
+    environment:
+      # Override the localhost URL from .env — inside Docker, use the service name "db"
+      DATABASE_URL: postgresql+asyncpg://admin:pass@db:5432/db
     depends_on:
       - db
 

@@ -20,7 +20,7 @@ services:
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: safepath
+      POSTGRES_DB: svitliachok
     volumes:
       - pgdata_prod:/var/lib/postgresql/data
 

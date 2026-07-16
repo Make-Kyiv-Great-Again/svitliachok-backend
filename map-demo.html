@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Svitliachok Demo</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    #map {
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+    }
+
+    #floating-panel {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 280px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(12px);
+      padding: 16px;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+      pointer-events: auto;
+    }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1c1c1e;
+    }
+
+    .toggle-row {
+      display: flex;
+      background: #f2f2f7;
+      border-radius: 12px;
+      overflow: hidden;
+      padding: 4px;
+    }
+    .toggle-row label {
+      flex: 1;
+      text-align: center;
+      padding: 8px 4px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      color: #8e8e93;
+      transition: all .2s;
+      border-radius: 10px;
+    }
+    .toggle-row input[type=radio] { display: none; }
+    .toggle-row input[type=radio]:checked + label { 
+      background: #ffffff; 
+      color: #1c1c1e; 
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 10px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all .2s;
+      background: #f2f2f7;
+      color: #1c1c1e;
+      text-align: center;
+      width: 100%;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-primary { 
+      background: #1c1c1e; 
+      color: #ffffff; 
+    }
+    .btn-danger {
+      color: #ff3b30;
+      background: #ffebe9;
+    }
+
+    .pin { width: 16px; height: 16px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,.3); }
+    .pin-start { background: #3fb950; }
+    .pin-end   { background: #ff3b30; }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════ MAP ════════════════════════ -->
+<div id="map"></div>
+
+<!-- ════════════════════════ FLOATING PANEL ════════════════════════ -->
+<div id="floating-panel">
+  <div>
+    <h1>Svitliachok Demo</h1>
+  </div>
+
+  <div class="toggle-row">
+    <input type="radio" name="pickMode" id="modeStart" value="start" checked />
+    <label for="modeStart">Set Start</label>
+    <input type="radio" name="pickMode" id="modeEnd" value="end" />
+    <label for="modeEnd">Set End</label>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-primary" id="btnRoute" disabled>Calculate Route</button>
+    <button class="btn" id="btnTrigger">Update Map Data</button>
+    <button class="btn btn-danger" id="btnClear">Clear Map</button>
+  </div>
+
+  <div id="route-info" style="display: none; flex-direction: column; gap: 8px; font-size: 13px; padding: 0 4px;">
+    <div style="display: flex; justify-content: space-between;">
+      <span style="color: #1c1c1e; font-weight: 600;"><span style="color:#ffcc00">●</span> Quick Path:</span>
+      <span id="quick-time" style="color: #8e8e93; font-weight: 500;">--</span>
+    </div>
+    <div style="display: flex; justify-content: space-between;">
+      <span style="color: #1c1c1e; font-weight: 600;"><span style="color:#3fb950">●</span> Safe Path:</span>
+      <span id="safe-time" style="color: #8e8e93; font-weight: 500;">--</span>
+    </div>
+  </div>
+
+  <!-- Hidden data -->
+  <input type="hidden" id="apiUrl" value="http://localhost:8000" />
+  <input type="hidden" id="startLat" /><input type="hidden" id="startLon" />
+  <input type="hidden" id="endLat" /><input type="hidden" id="endLon" />
+</div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────────────────
+const API = () => document.getElementById('apiUrl').value.replace(/\/$/, '');
+
+// ── Map ───────────────────────────────────────────────────────────────────
+const map = L.map('map', { zoomControl: false }).setView([50.450, 30.523], 13);
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap contributors & CARTO',
+  maxZoom: 20,
+}).addTo(map);
+
+// ── Layer groups — featureGroup supports getBounds() ──────────────────────
+const darkLayer     = L.featureGroup().addTo(map);
+const businessLayer = L.featureGroup().addTo(map);
+const quickLayer    = L.featureGroup().addTo(map);
+const safeLayer     = L.featureGroup().addTo(map);
+
+// ── Markers ───────────────────────────────────────────────────────────────
+let startMarker = null, endMarker = null;
+let startLatLon = null, endLatLon = null;
+
+function makeIcon(cls) {
+  return L.divIcon({
+    className: '',
+    html: `<div class="pin ${cls}"></div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+  });
+}
+
+function log(msg, type = '') {
+  console.log('[LOG]', type, msg);
+}
+
+function refreshBtn() {
+  document.getElementById('btnRoute').disabled = !(startLatLon && endLatLon);
+}
+
+// ── Map click → place pin ─────────────────────────────────────────────────
+map.on('click', ({ latlng }) => {
+  const { lat, lng } = latlng;
+  const mode = document.querySelector('input[name=pickMode]:checked').value;
+
+  if (mode === 'start') {
+    startLatLon = { lat, lng };
+    document.getElementById('startLat').value = lat.toFixed(6);
+    document.getElementById('startLon').value = lng.toFixed(6);
+    if (startMarker) map.removeLayer(startMarker);
+    startMarker = L.marker([lat, lng], { icon: makeIcon('pin-start') }).bindTooltip('Start').addTo(map);
+    document.getElementById('modeEnd').checked = true;
+  } else {
+    endLatLon = { lat, lng };
+    document.getElementById('endLat').value = lat.toFixed(6);
+    document.getElementById('endLon').value = lng.toFixed(6);
+    if (endMarker) map.removeLayer(endMarker);
+    endMarker = L.marker([lat, lng], { icon: makeIcon('pin-end') }).bindTooltip('End').addTo(map);
+  }
+  refreshBtn();
+});
+
+// ── Manual coordinate inputs ──────────────────────────────────────────────
+['startLat', 'startLon', 'endLat', 'endLon'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => {
+    const sLat = parseFloat(document.getElementById('startLat').value);
+    const sLon = parseFloat(document.getElementById('startLon').value);
+    const eLat = parseFloat(document.getElementById('endLat').value);
+    const eLon = parseFloat(document.getElementById('endLon').value);
+    if (!isNaN(sLat) && !isNaN(sLon)) {
+      startLatLon = { lat: sLat, lng: sLon };
+      if (startMarker) map.removeLayer(startMarker);
+      startMarker = L.marker([sLat, sLon], { icon: makeIcon('pin-start') }).bindTooltip('Start').addTo(map);
+    }
+    if (!isNaN(eLat) && !isNaN(eLon)) {
+      endLatLon = { lat: eLat, lng: eLon };
+      if (endMarker) map.removeLayer(endMarker);
+      endMarker = L.marker([eLat, eLon], { icon: makeIcon('pin-end') }).bindTooltip('End').addTo(map);
+    }
+    refreshBtn();
+  });
+});
+
+// ── Load overlays: dark streets + businesses ──────────────────────────────
+function getUserLocation() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve({ lat: 50.450, lng: 30.523 });
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      err => resolve({ lat: 50.450, lng: 30.523 }),
+      { timeout: 5000 }
+    );
+  });
+}
+
+async function loadOverlays() {
+  const base = API();
+
+  if (!window.userLocation) {
+    window.userLocation = await getUserLocation();
+    L.circleMarker([window.userLocation.lat, window.userLocation.lng], {
+      radius: 8, fillColor: '#007aff', color: '#fff', weight: 2, fillOpacity: 1
+    }).bindTooltip('Your Location', { permanent: true, direction: 'right', className: 'location-tooltip' }).addTo(map);
+    map.setView([window.userLocation.lat, window.userLocation.lng], 12);
+  }
+
+  // Dark streets — yellow lines where dynamic_cost > cost (mock: ~40% of all streets)
+  try {
+    const res = await fetch(`${base}/api/v1/lighting/dark-streets`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lat: window.userLocation.lat,
+        lon: window.userLocation.lng
+      })
+    });
+    const gj    = await res.json();
+    const count = gj.features?.length ?? 0;
+
+    darkLayer.clearLayers();
+
+    if (count > 0) {
+      L.geoJSON(gj, {
+        style: {
+          color:     '#ff3b30',
+          weight:    5,
+          opacity:   0.3,
+          lineCap:   'round',
+          lineJoin:  'round',
+        },
+        onEachFeature(feature, fl) {
+          fl.bindTooltip(`Blackout Zone`, { sticky: true });
+        },
+      }).addTo(darkLayer);
+
+      // Zoom to the user location and dark streets bounds
+      try {
+        const b = darkLayer.getBounds();
+        if (b.isValid()) map.fitBounds(b, { padding: [40, 40] });
+      } catch (_) {}
+    }
+
+    log(`🔦 ${count} dark street segments`, count > 0 ? 'ok' : '');
+    console.log(`[dark-streets] ${count} features`);
+  } catch (e) {
+    log(`Dark streets error: ${e.message}`, 'err');
+    console.error('[dark-streets]', e);
+  }
+
+  // Businesses (blue = generator running)
+  try {
+    const res  = await fetch(`${base}/api/v1/businesses/`);
+    const list = await res.json();
+    businessLayer.clearLayers();
+    list.forEach(b => {
+      const running = b.generator_is_running;
+      L.circleMarker([b.lat, b.lon], {
+        radius:      8,
+        fillColor:   running ? '#58a6ff' : '#484f58',
+        color:       '#fff',
+        weight:      1.5,
+        fillOpacity: 0.9,
+      })
+      .bindTooltip(`Business: ${b.name}`, { sticky: true })
+      .addTo(businessLayer);
+    });
+  } catch (e) {
+    console.warn('[businesses]', e.message);
+  }
+}
+
+// ── Route calculation ─────────────────────────────────────────────────────
+// The API now returns a raw GeoJSON FeatureCollection directly (no wrapper).
+async function calcRoute(routeType, layer, color, dashed = false) {
+  const res = await fetch(`${API()}/api/v1/routing/path`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({
+      start_lat:  startLatLon.lat,
+      start_lon:  startLatLon.lng,
+      end_lat:    endLatLon.lat,
+      end_lon:    endLatLon.lng,
+      route_type: routeType,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+
+  const gj = await res.json();   // raw GeoJSON FeatureCollection
+  console.log(`[${routeType}] features:`, gj?.features?.length, gj);
+
+  layer.clearLayers();
+
+  if (!gj?.features?.length) {
+    console.warn(`[${routeType}] 0 features — no route`);
+    return 0;
+  }
+
+  let totalKm = 0;
+  L.geoJSON(gj, {
+    style: {
+      color,
+      weight:    dashed ? 5 : 6,
+      opacity:   1,
+      dashArray: dashed ? '12 6' : null,
+      lineCap:   'round',
+      lineJoin:  'round',
+    },
+    onEachFeature(feature, fl) {
+      totalKm += feature.properties.km || 0;
+      fl.bindTooltip(`${routeType === 'quick' ? 'Quick' : 'Safe'} Route`, { sticky: true });
+    },
+  }).addTo(layer);
+
+  // Always zoom to the route so it's visible
+  try {
+    const b = layer.getBounds();
+    if (b.isValid()) map.fitBounds(b, { padding: [50, 50] });
+  } catch (_) {}
+
+  const minutes = Math.ceil((totalKm / 5) * 60);
+  return { segments: gj.features.length, minutes };
+}
+
+// ── Route button ──────────────────────────────────────────────────────────
+document.getElementById('btnRoute').addEventListener('click', async () => {
+  const btn = document.getElementById('btnRoute');
+  btn.disabled = true;
+  log('Calculating routes…');
+
+  const [qr, sr] = await Promise.allSettled([
+    calcRoute('quick', quickLayer, '#ffcc00', false),
+    calcRoute('safe',  safeLayer,  '#3fb950', false),
+  ]);
+
+  if (qr.status === 'fulfilled') {
+    document.getElementById('quick-time').innerText = `${qr.value.minutes} min`;
+  } else {
+    console.error('Quick error:', qr.reason);
+    document.getElementById('quick-time').innerText = 'N/A';
+  }
+
+  if (sr.status === 'fulfilled') {
+    document.getElementById('safe-time').innerText = `${sr.value.minutes} min`;
+  } else {
+    console.error('Safe error:', sr.reason);
+    document.getElementById('safe-time').innerText = 'N/A';
+  }
+
+  document.getElementById('route-info').style.display = 'flex';
+  
+  btn.disabled = false;
+  refreshBtn();
+});
+
+// ── Trigger lighting update ───────────────────────────────────────────────
+document.getElementById('btnTrigger').addEventListener('click', async () => {
+  const btn = document.getElementById('btnTrigger');
+  btn.disabled = true;
+  log('Triggering lighting update…');
+  try {
+    const res = await fetch(`${API()}/api/v1/lighting/trigger`, { method: 'POST' });
+    if (!res.ok) throw new Error(await res.text());
+    log('✓ Updated — reloading…', 'ok');
+    await loadOverlays();
+  } catch (e) {
+    log(`Trigger failed: ${e.message}`, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ── Clear ─────────────────────────────────────────────────────────────────
+document.getElementById('btnClear').addEventListener('click', () => {
+  [quickLayer, safeLayer].forEach(l => l.clearLayers());
+  [startMarker, endMarker].forEach(m => { if (m) map.removeLayer(m); });
+  startMarker = endMarker = startLatLon = endLatLon = null;
+  ['startLat', 'startLon', 'endLat', 'endLon'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('modeStart').checked = true;
+  document.getElementById('route-info').style.display = 'none';
+  refreshBtn();
+  log('Cleared.');
+});
+
+
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+loadOverlays();
+setInterval(loadOverlays, 2 * 60 * 1000);
+
+</script>
+</body>
+</html>
