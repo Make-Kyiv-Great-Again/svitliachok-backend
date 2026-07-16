@@ -106,6 +106,9 @@
     .pin { width: 16px; height: 16px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,.3); }
     .pin-start { background: #3fb950; }
     .pin-end   { background: #ff3b30; }
+
+    .pin-biz-on { width: 14px; height: 14px; border-radius: 4px; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.4); background: #f59e0b; }
+    .pin-biz-off { width: 14px; height: 14px; border-radius: 4px; border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.2); background: #8e8e93; }
   </style>
 </head>
 <body>
@@ -308,12 +311,13 @@ async function loadOverlays() {
     businessLayer.clearLayers();
     list.forEach(b => {
       const running = b.generator_is_running;
-      L.circleMarker([b.lat, b.lon], {
-        radius:      8,
-        fillColor:   running ? '#58a6ff' : '#484f58',
-        color:       '#fff',
-        weight:      1.5,
-        fillOpacity: 0.9,
+      L.marker([b.lat, b.lon], {
+        icon: L.divIcon({
+          className: '',
+          html: `<div class="${running ? 'pin-biz-on' : 'pin-biz-off'}"></div>`,
+          iconSize: [14, 14],
+          iconAnchor: [7, 7]
+        })
       })
       .bindTooltip(`Business: ${b.name}`, { sticky: true })
       .addTo(businessLayer);
