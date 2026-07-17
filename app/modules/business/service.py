@@ -13,6 +13,8 @@ def _row_to_response(row: Business, lat: float, lon: float) -> BusinessResponse:
         name=row.name,
         biz_type=row.biz_type,
         has_generator=row.has_generator,
+        has_wifi=row.has_wifi,
+        can_charge_phone=row.can_charge_phone,
         is_open=row.is_open,
         generator_is_running=row.generator_is_running,
         lat=lat,
@@ -31,6 +33,8 @@ async def create_business(
         name=data.name,
         biz_type=data.biz_type,
         has_generator=data.has_generator,
+        has_wifi=data.has_wifi,
+        can_charge_phone=data.can_charge_phone,
         geom=f"SRID=4326;POINT({data.lon} {data.lat})",
     )
     db.add(biz)

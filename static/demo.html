@@ -10,96 +10,382 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Inter', -apple-system, sans-serif; overflow: hidden; }
     #map { width: 100vw; height: 100vh; z-index: 1; }
+
+    /* ── Floating panel ─────────────────────────────────────────────────── */
     #floating-panel {
       position: absolute; top: 16px; left: 16px; z-index: 1000;
-      display: flex; flex-direction: column; gap: 16px; width: 280px;
-      background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px);
-      padding: 16px; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+      display: flex; flex-direction: column; gap: 14px; width: 296px;
+      background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(16px);
+      padding: 18px; border-radius: 20px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.13), 0 1px 0 rgba(255,255,255,0.8) inset;
     }
     @media (max-width: 600px) {
-      #floating-panel {
-        top: auto; bottom: 16px; left: 16px; right: 16px; width: auto;
-      }
-      .leaflet-control-zoom { display: none; /* Hide zoom controls on mobile to save space */ }
+      #floating-panel { top: auto; bottom: 16px; left: 12px; right: 12px; width: auto; }
+      .leaflet-control-zoom { display: none; }
     }
-    h1 { font-size: 20px; font-weight: 700; color: #1c1c1e; }
-    .toggle-row { display: flex; background: #f2f2f7; border-radius: 12px; padding: 4px; }
-    .toggle-row label { flex: 1; text-align: center; padding: 8px 4px; font-size: 13px; font-weight: 500; cursor: pointer; color: #8e8e93; transition: all .2s; border-radius: 10px; }
+
+    h1 { font-size: 18px; font-weight: 700; color: #1c1c1e; letter-spacing: -0.3px; }
+    .subtitle { font-size: 11px; color: #8e8e93; font-weight: 500; margin-top: 2px; }
+
+    /* ── Mode toggle ────────────────────────────────────────────────────── */
+    .toggle-row {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      background: #f2f2f7; border-radius: 12px; padding: 3px; gap: 2px;
+    }
     .toggle-row input[type=radio] { display: none; }
-    .toggle-row input[type=radio]:checked + label { background: #fff; color: #1c1c1e; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .toggle-row label {
+      text-align: center; padding: 7px 2px; font-size: 11px; font-weight: 600;
+      cursor: pointer; color: #8e8e93; border-radius: 9px;
+      transition: all .18s; user-select: none; line-height: 1.2;
+    }
+    .toggle-row input[type=radio]:checked + label {
+      background: #fff; color: #1c1c1e;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+    }
+    #modeCheck:checked + label { color: #bf5af2; }
+    #modeReport:checked + label { color: #ff9f0a; }
+
+    /* ── Mode hint ──────────────────────────────────────────────────────── */
+    #mode-hint {
+      font-size: 11px; color: #8e8e93; text-align: center;
+      padding: 6px 10px; background: #f9f9f9; border-radius: 10px;
+      transition: opacity .2s;
+    }
+
+    /* ── Buttons ────────────────────────────────────────────────────────── */
     .actions { display: flex; flex-direction: column; gap: 8px; }
-    .btn { padding: 10px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all .2s; background: #f2f2f7; width: 100%; }
+    .btn {
+      padding: 10px; border-radius: 12px; font-size: 13px; font-weight: 600;
+      cursor: pointer; border: none; transition: all .18s;
+      background: #f2f2f7; width: 100%; color: #1c1c1e;
+    }
     .btn:active { transform: scale(0.97); }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
     .btn-primary { background: #1c1c1e; color: #fff; }
     .btn-danger { color: #ff3b30; background: #ffebe9; }
-    .pin { width: 16px; height: 16px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,.3); }
+
+    /* ── Route info ─────────────────────────────────────────────────────── */
+    #route-info {
+      display: none; flex-direction: column; gap: 6px;
+      font-size: 12px; padding: 10px; background: #f9f9f9;
+      border-radius: 12px;
+    }
+    .route-row { display: flex; justify-content: space-between; align-items: center; }
+    .route-label { font-weight: 600; color: #1c1c1e; display: flex; align-items: center; gap: 6px; }
+    .route-value { color: #8e8e93; font-weight: 500; }
+
+    /* ── Map pins ───────────────────────────────────────────────────────── */
+    .pin { width: 16px; height: 16px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
     .pin-start { background: #3fb950; }
-    .pin-end { background: #ff3b30; }
-    .pin-biz-on { width: 14px; height: 14px; border-radius: 4px; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.4); background: #f59e0b; }
+    .pin-end   { background: #ff3b30; }
+    .pin-biz-on  { width: 14px; height: 14px; border-radius: 4px; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.4); background: #f59e0b; }
     .pin-biz-off { width: 14px; height: 14px; border-radius: 4px; border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.2); background: #8e8e93; }
+
+    /* ── Light check marker ─────────────────────────────────────────────── */
+    .light-check-marker {
+      width: 22px; height: 22px; border-radius: 50%; border: 3px solid #fff;
+      box-shadow: 0 2px 10px rgba(0,0,0,.35);
+      animation: pulse-check .6s ease-out;
+    }
+    .light-check-lit  { background: #30d158; }
+    .light-check-dark { background: #ff3b30; }
+    .light-check-none { background: #8e8e93; }
+    @keyframes pulse-check {
+      0%   { transform: scale(0.4); opacity: 0; }
+      60%  { transform: scale(1.15); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* ── Leaflet popup override ─────────────────────────────────────────── */
+    .light-popup .leaflet-popup-content-wrapper {
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      padding: 0; overflow: hidden;
+      min-width: 200px;
+    }
+    .light-popup .leaflet-popup-content { margin: 0; }
+    .light-popup .leaflet-popup-tip-container { display: none; }
+
+    .popup-inner { padding: 14px 16px; }
+    .popup-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid #f2f2f7;
+    }
+    .popup-title { font-size: 15px; font-weight: 700; color: #1c1c1e; }
+    .popup-subtitle { font-size: 12px; color: #8e8e93; margin-top: 2px; }
+
+    .popup-rows { display: flex; flex-direction: column; gap: 6px; padding: 10px 16px 14px; }
+    .popup-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+    .popup-row-label { color: #8e8e93; font-weight: 500; }
+    .popup-row-value { color: #1c1c1e; font-weight: 600; }
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 20px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.3px;
+    }
+    .badge-lit   { background: #d4f5e2; color: #1a7a3f; }
+    .badge-dark  { background: #ffe5e3; color: #c0392b; }
+    .badge-none  { background: #ebebeb; color: #6e6e73; }
+    .penalty-bar-wrap {
+      margin: 6px 0 2px;
+      background: #f2f2f7; border-radius: 6px; height: 6px; overflow: hidden;
+    }
+    .penalty-bar {
+      height: 100%; border-radius: 6px;
+      transition: width .4s ease;
+    }
+    .penalty-bar.lit  { background: #30d158; }
+    .penalty-bar.dark { background: #ff3b30; }
+
+    /* ── Loading spinner in popup ──────────────────────────────────────── */
+    .popup-loading {
+      padding: 20px 16px; text-align: center;
+      font-size: 12px; color: #8e8e93; display: flex;
+      align-items: center; justify-content: center; gap: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 14px; height: 14px; border: 2px solid #e5e5ea;
+      border-top-color: #8e8e93; border-radius: 50%;
+      animation: spin .8s linear infinite; flex-shrink: 0;
+    }
   </style>
 </head>
 <body>
 
 <div id="map"></div>
 <div id="floating-panel">
-  <h1>Svitliachok Demo</h1>
+  <div>
+    <h1>Svitliachok Demo</h1>
+    <div class="subtitle">Safe pedestrian routing for Kyiv</div>
+  </div>
+
   <div class="toggle-row">
     <input type="radio" name="pickMode" id="modeStart" value="start" checked />
     <label for="modeStart">Set Start</label>
     <input type="radio" name="pickMode" id="modeEnd" value="end" />
     <label for="modeEnd">Set End</label>
+    <input type="radio" name="pickMode" id="modeCheck" value="check" />
+    <label for="modeCheck">Light</label>
+    <input type="radio" name="pickMode" id="modeReport" value="report" />
+    <label for="modeReport">Report</label>
   </div>
+
+  <div id="mode-hint">Click the map to set your starting point</div>
+
   <div class="actions">
     <button class="btn btn-primary" id="btnRoute" disabled>Calculate Route</button>
     <button class="btn" id="btnTrigger">Update Map Data</button>
     <button class="btn btn-danger" id="btnClear">Clear Map</button>
   </div>
-  <div id="route-info" style="display: none; flex-direction: column; gap: 8px; font-size: 13px; padding: 0 4px;">
-    <div style="display: flex; justify-content: space-between;">
-      <span style="color: #1c1c1e; font-weight: 600;"><span style="color:#ffcc00">●</span> Quick Path:</span>
-      <span id="quick-time" style="color: #8e8e93; font-weight: 500;">--</span>
+
+  <div id="route-info">
+    <div class="route-row">
+      <span class="route-label"><span style="color:#ffcc00">●</span> Quick</span>
+      <span class="route-value" id="quick-time">--</span>
     </div>
-    <div style="display: flex; justify-content: space-between;">
-      <span style="color: #1c1c1e; font-weight: 600;"><span style="color:#3fb950">●</span> Safe Path:</span>
-      <span id="safe-time" style="color: #8e8e93; font-weight: 500;">--</span>
+    <div class="route-row">
+      <span class="route-label"><span style="color:#3fb950">●</span> Safe</span>
+      <span class="route-value" id="safe-time">--</span>
+    </div>
+    <div class="route-row" style="margin-top:4px;padding-top:6px;border-top:1px solid #f2f2f7">
+      <span class="route-label" style="font-weight:500;color:#8e8e93"><span style="color:#f5c518">●</span> Street lamps</span>
+      <span class="route-value" id="lamp-count" style="color:#8e8e93">--</span>
     </div>
   </div>
 </div>
 
 <script>
+// ── Map init ──────────────────────────────────────────────────────────────
 const map = L.map('map', { zoomControl: false }).setView([50.450, 30.523], 13);
 L.control.zoom({ position: 'bottomright' }).addTo(map);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 20 }).addTo(map);
 
-const darkLayer = L.featureGroup().addTo(map);
+const darkLayer     = L.featureGroup().addTo(map);
 const businessLayer = L.featureGroup().addTo(map);
-const quickLayer = L.featureGroup().addTo(map);
-const safeLayer = L.featureGroup().addTo(map);
+const lampsLayer    = L.featureGroup().addTo(map);
+const quickLayer    = L.featureGroup().addTo(map);
+const safeLayer     = L.featureGroup().addTo(map);
+const checkLayer    = L.featureGroup().addTo(map);  // light check markers
 
 let startMarker = null, endMarker = null;
 let startLatLon = null, endLatLon = null;
 
-const makeIcon = cls => L.divIcon({ className: '', html: `<div class="pin ${cls}"></div>`, iconSize: [14,14], iconAnchor: [7,7] });
+const makePin = cls => L.divIcon({
+  className: '',
+  html: `<div class="pin ${cls}"></div>`,
+  iconSize: [16, 16], iconAnchor: [8, 8]
+});
 
-const refreshBtn = () => { document.getElementById('btnRoute').disabled = !(startLatLon && endLatLon); };
+const refreshBtn = () => {
+  document.getElementById('btnRoute').disabled = !(startLatLon && endLatLon);
+};
 
-map.on('click', ({ latlng }) => {
-  const isStart = document.querySelector('input[name=pickMode]:checked').value === 'start';
-  if (isStart) {
+// ── Mode hint text ────────────────────────────────────────────────────────
+const HINTS = {
+  start:  'Click the map to set your starting point',
+  end:    'Click the map to set your destination',
+  check:  '💡 Click anywhere to check lighting status',
+  report: '📢 Click to report lighting conditions (coming soon)',
+};
+document.querySelectorAll('input[name=pickMode]').forEach(r => {
+  r.addEventListener('change', () => {
+    document.getElementById('mode-hint').textContent = HINTS[r.value];
+    if (r.value !== 'check') checkLayer.clearLayers();
+  });
+});
+
+// ── Map click handler ─────────────────────────────────────────────────────
+map.on('click', async ({ latlng }) => {
+  const mode = document.querySelector('input[name=pickMode]:checked').value;
+
+  if (mode === 'start') {
     startLatLon = latlng;
     if (startMarker) map.removeLayer(startMarker);
-    startMarker = L.marker(latlng, { icon: makeIcon('pin-start') }).bindTooltip('Start').addTo(map);
+    startMarker = L.marker(latlng, { icon: makePin('pin-start') })
+      .bindTooltip('Start').addTo(map);
     document.getElementById('modeEnd').checked = true;
-  } else {
+    document.getElementById('mode-hint').textContent = HINTS.end;
+
+  } else if (mode === 'end') {
     endLatLon = latlng;
     if (endMarker) map.removeLayer(endMarker);
-    endMarker = L.marker(latlng, { icon: makeIcon('pin-end') }).bindTooltip('End').addTo(map);
+    endMarker = L.marker(latlng, { icon: makePin('pin-end') })
+      .bindTooltip('End').addTo(map);
+
+  } else if (mode === 'check') {
+    await showLightCheck(latlng);
+
+  } else if (mode === 'report') {
+    L.popup({ className: 'light-popup', closeButton: true })
+      .setLatLng(latlng)
+      .setContent(`
+        <div class="popup-header">
+          <div class="popup-title">Report Lighting</div>
+          <div class="popup-subtitle">Coming soon</div>
+        </div>
+        <div class="popup-rows">
+          <div style="font-size:12px;color:#8e8e93">
+            Crowdsource reporting will be available in the next update.
+          </div>
+        </div>
+      `)
+      .openOn(map);
   }
+
   refreshBtn();
 });
 
+// ── Light check ───────────────────────────────────────────────────────────
+async function showLightCheck(latlng) {
+  // Show loading popup immediately
+  const popup = L.popup({ className: 'light-popup', closeButton: true, maxWidth: 260 })
+    .setLatLng(latlng)
+    .setContent(`
+      <div class="popup-loading">
+        <div class="spinner"></div>
+        Checking lighting…
+      </div>
+    `)
+    .openOn(map);
+
+  // Place a temporary marker while loading
+  const tempIcon = L.divIcon({
+    className: '',
+    html: `<div class="light-check-marker light-check-none"></div>`,
+    iconSize: [22, 22], iconAnchor: [11, 11]
+  });
+  const marker = L.marker(latlng, { icon: tempIcon }).addTo(checkLayer);
+
+  try {
+    const res = await fetch(
+      `/api/v1/lighting/point?lat=${latlng.lat}&lon=${latlng.lng}`
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    const { html, cls } = buildPopupContent(data);
+
+    // Update marker icon
+    const finalIcon = L.divIcon({
+      className: '',
+      html: `<div class="light-check-marker ${cls}"></div>`,
+      iconSize: [22, 22], iconAnchor: [11, 11]
+    });
+    marker.setIcon(finalIcon);
+
+    popup.setContent(html);
+
+  } catch (e) {
+    console.error('Light check error:', e);
+    popup.setContent(`
+      <div class="popup-header">
+        <div class="popup-title">Error</div>
+        <div class="popup-subtitle">Could not fetch data</div>
+      </div>
+    `);
+  }
+}
+
+function buildPopupContent(data) {
+  let title, subtitle, cls;
+
+  if (data.has_light === null) {
+    title = 'Unknown'; cls = 'light-check-none';
+    subtitle = 'No street found within 150 m';
+  } else if (data.has_light) {
+    title = 'Lit'; cls = 'light-check-lit';
+    subtitle = data.street_name ? `on ${data.street_name}` : 'Nearest street is lit';
+  } else {
+    title = 'Dark'; cls = 'light-check-dark';
+    subtitle = data.street_name ? `on ${data.street_name}` : 'Nearest street is dark';
+  }
+
+  const penaltyPct = data.penalty_ratio
+    ? Math.min(100, ((data.penalty_ratio - 1) / 4) * 100)
+    : 0;
+  const barClass   = data.has_light ? 'lit' : 'dark';
+  const badgeClass = data.has_light === null ? 'badge-none'
+                   : data.has_light ? 'badge-lit' : 'badge-dark';
+  const distText    = data.distance_m != null ? `${data.distance_m} m` : '—';
+  const penaltyText = data.penalty_ratio != null ? `${data.penalty_ratio}×` : '—';
+  const sourceLabel = data.source === 'street_edge' ? 'Street edge data'
+                    : data.source === 'none'         ? 'Out of range'
+                    : data.source;
+
+  const html = `
+    <div class="popup-header">
+      <div class="popup-title">${title}</div>
+      <div class="popup-subtitle">${subtitle}</div>
+    </div>
+    <div class="popup-rows">
+      <div class="popup-row">
+        <span class="popup-row-label">Status</span>
+        <span class="badge ${badgeClass}">${title}</span>
+      </div>
+      ${data.distance_m != null ? `
+      <div class="popup-row">
+        <span class="popup-row-label">Nearest street</span>
+        <span class="popup-row-value">${distText}</span>
+      </div>` : ''}
+      ${data.penalty_ratio != null ? `
+      <div class="popup-row">
+        <span class="popup-row-label">Penalty</span>
+        <span class="popup-row-value">${penaltyText}</span>
+      </div>
+      <div class="penalty-bar-wrap">
+        <div class="penalty-bar ${barClass}" style="width:${penaltyPct}%"></div>
+      </div>` : ''}
+      <div class="popup-row" style="margin-top:2px">
+        <span class="popup-row-label">Source</span>
+        <span class="popup-row-value" style="font-size:11px;color:#8e8e93">${sourceLabel}</span>
+      </div>
+    </div>
+  `;
+
+  return { html, cls };
+}
+
+// ── Overlays ──────────────────────────────────────────────────────────────
 const getUserLocation = () => new Promise(resolve => {
   if (!navigator.geolocation) return resolve({ lat: 50.450, lng: 30.523 });
   navigator.geolocation.getCurrentPosition(
@@ -111,51 +397,97 @@ const getUserLocation = () => new Promise(resolve => {
 async function loadOverlays() {
   if (!window.userLocation) {
     window.userLocation = await getUserLocation();
-    L.circleMarker(window.userLocation, { radius: 8, fillColor: '#007aff', color: '#fff', weight: 2, fillOpacity: 1 })
-      .bindTooltip('Your Location', { permanent: true, direction: 'right' }).addTo(map);
-    map.setView(window.userLocation, 12);
+    L.circleMarker(window.userLocation, {
+      radius: 8, fillColor: '#007aff', color: '#fff', weight: 2, fillOpacity: 1
+    }).bindTooltip('Your Location', { permanent: true, direction: 'right' }).addTo(map);
+    map.setView(window.userLocation, 14);
   }
 
+  // Dark streets overlay
   try {
-    const res = await fetch(`/api/v1/lighting/dark-streets?lat=${window.userLocation.lat}&lon=${window.userLocation.lng}`);
+    const res = await fetch(
+      `/api/v1/lighting/dark-streets?lat=${window.userLocation.lat}&lon=${window.userLocation.lng}`
+    );
     const gj = await res.json();
     darkLayer.clearLayers();
     if (gj.features?.length) {
       L.geoJSON(gj, {
-        style: { color: '#ff3b30', weight: 5, opacity: 0.3, lineCap: 'round', lineJoin: 'round' },
-        onEachFeature: (_, fl) => fl.bindTooltip('Blackout Zone', { sticky: true })
+        style: { color: '#ff3b30', weight: 5, opacity: 0.35, lineCap: 'round', lineJoin: 'round' },
+        onEachFeature: (_, fl) => fl.bindTooltip('🌑 Blackout Zone', { sticky: true })
       }).addTo(darkLayer);
     }
   } catch (e) { console.error('Dark streets error:', e); }
 
+  // Businesses overlay
   try {
-    const res = await fetch(`/api/v1/businesses/`);
+    const res = await fetch('/api/v1/businesses/');
     const list = await res.json();
     businessLayer.clearLayers();
     list.forEach(b => {
       const cls = b.generator_is_running ? 'pin-biz-on' : 'pin-biz-off';
+      const wifi    = b.has_wifi          ? '✓' : '✗';
+      const charge  = b.can_charge_phone  ? '✓' : '✗';
+      const gen     = b.generator_is_running ? '✓ Running' : (b.has_generator ? '✗ Off' : '—');
       L.marker([b.lat, b.lon], {
         icon: L.divIcon({ className: '', html: `<div class="${cls}"></div>`, iconSize: [14, 14], iconAnchor: [7, 7] })
-      }).bindTooltip(`Business: ${b.name}`, { sticky: true }).addTo(businessLayer);
+      }).bindPopup(`
+        <div style="font-size:13px;line-height:1.6;min-width:160px">
+          <div style="font-weight:700;font-size:14px;margin-bottom:6px">${b.name}</div>
+          <div style="color:#8e8e93;font-size:11px;margin-bottom:8px">${b.biz_type || 'Business'}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px">
+            <span style="color:#8e8e93">Wi-Fi</span>       <span>${wifi}</span>
+            <span style="color:#8e8e93">Charging</span>    <span>${charge}</span>
+            <span style="color:#8e8e93">Generator</span>   <span>${gen}</span>
+          </div>
+        </div>
+      `, { maxWidth: 220 }).addTo(businessLayer);
     });
   } catch (e) { console.error('Businesses error:', e); }
 }
 
+// ── Street lamps — only within 40 m of actual route geometry ────────────
+async function loadLamps(routeFeatures) {
+  lampsLayer.clearLayers();
+  if (!routeFeatures?.length) return;
+  try {
+    const res = await fetch('/api/v1/lighting/lamps-near-route', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ features: routeFeatures, radius_m: 40 }),
+    });
+    if (!res.ok) return;
+    const gj = await res.json();
+    if (!gj.features?.length) return;
+    L.geoJSON(gj, {
+      pointToLayer: (_, latlng) =>
+        L.circleMarker(latlng, {
+          radius: 3,
+          fillColor: '#f5c518',
+          color: 'transparent',
+          fillOpacity: 0.75,
+          interactive: false,
+        }),
+    }).addTo(lampsLayer);
+    const el = document.getElementById('lamp-count');
+    if (el) el.textContent = `${gj.features.length.toLocaleString()} near route`;
+  } catch (e) { console.error('Lamps error:', e); }
+}
+
+// ── Route calculation ─────────────────────────────────────────────────────
 async function calcRoute(routeType, layer, color) {
-  const res = await fetch(`/api/v1/routing/path`, {
+  const res = await fetch('/api/v1/routing/path', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       start_lat: startLatLon.lat, start_lon: startLatLon.lng,
-      end_lat: endLatLon.lat, end_lon: endLatLon.lng, route_type: routeType,
+      end_lat:   endLatLon.lat,   end_lon:   endLatLon.lng,
+      route_type: routeType,
     }),
   });
-
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const gj = await res.json();
   layer.clearLayers();
-  
-  if (!gj?.features?.length) return { minutes: 'N/A' };
+  if (!gj?.features?.length) return { minutes: 'N/A', geojson: null };
 
   let totalKm = 0;
   L.geoJSON(gj, {
@@ -166,46 +498,58 @@ async function calcRoute(routeType, layer, color) {
     },
   }).addTo(layer);
 
-  try { map.fitBounds(layer.getBounds(), { padding: [50, 50] }); } catch (e) {}
-  return { minutes: Math.ceil((totalKm / 5) * 60) + ' min' };
+  try { map.fitBounds(layer.getBounds(), { padding: [60, 60] }); } catch (_) {}
+  return { minutes: Math.ceil((totalKm / 5) * 60) + ' min', geojson: gj };
 }
 
+// ── Button handlers ───────────────────────────────────────────────────────
 document.getElementById('btnRoute').addEventListener('click', async () => {
   const btn = document.getElementById('btnRoute');
-  btn.disabled = true;
-
+  btn.disabled = true; btn.textContent = 'Calculating…';
   try {
     const [qr, sr] = await Promise.allSettled([
       calcRoute('quick', quickLayer, '#ffcc00'),
-      calcRoute('safe', safeLayer, '#3fb950')
+      calcRoute('safe',  safeLayer,  '#3fb950'),
     ]);
-    document.getElementById('quick-time').innerText = qr.status === 'fulfilled' ? qr.value.minutes : 'Error';
-    document.getElementById('safe-time').innerText = sr.status === 'fulfilled' ? sr.value.minutes : 'Error';
+    document.getElementById('quick-time').textContent =
+      qr.status === 'fulfilled' ? qr.value.minutes : 'Error';
+    document.getElementById('safe-time').textContent  =
+      sr.status === 'fulfilled' ? sr.value.minutes  : 'Error';
     document.getElementById('route-info').style.display = 'flex';
+
+    // Collect all GeoJSON features from both routes, then load lamps near the paths
+    const allFeatures = [
+      ...(qr.status === 'fulfilled' && qr.value.geojson?.features ? qr.value.geojson.features : []),
+      ...(sr.status === 'fulfilled' && sr.value.geojson?.features ? sr.value.geojson.features : []),
+    ];
+    loadLamps(allFeatures);  // fire-and-forget: lamps appear asynchronously
   } finally {
-    btn.disabled = false;
+    btn.disabled = false; btn.textContent = 'Calculate Route';
   }
 });
 
 document.getElementById('btnTrigger').addEventListener('click', async () => {
   const btn = document.getElementById('btnTrigger');
-  btn.disabled = true;
+  btn.disabled = true; btn.textContent = 'Updating…';
   try {
-    await fetch(`/api/v1/lighting/trigger`, { method: 'POST' });
+    await fetch('/api/v1/lighting/trigger', { method: 'POST' });
+    checkLayer.clearLayers(); // stale check markers are now outdated
     await loadOverlays();
-  } finally { btn.disabled = false; }
+  } finally { btn.disabled = false; btn.textContent = 'Update Map Data'; }
 });
 
 document.getElementById('btnClear').addEventListener('click', () => {
-  quickLayer.clearLayers(); safeLayer.clearLayers();
+  quickLayer.clearLayers(); safeLayer.clearLayers(); checkLayer.clearLayers(); lampsLayer.clearLayers();
   if (startMarker) map.removeLayer(startMarker);
-  if (endMarker) map.removeLayer(endMarker);
+  if (endMarker)   map.removeLayer(endMarker);
   startMarker = endMarker = startLatLon = endLatLon = null;
   document.getElementById('modeStart').checked = true;
+  document.getElementById('mode-hint').textContent = HINTS.start;
   document.getElementById('route-info').style.display = 'none';
   refreshBtn();
 });
 
+// ── Boot ──────────────────────────────────────────────────────────────────
 loadOverlays();
 setInterval(loadOverlays, 120000);
 </script>
