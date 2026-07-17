@@ -31,8 +31,10 @@ Update pipeline (single atomic transaction):
       the router strongly prefer those corridors for the 'safe' route.
 """
 
+import asyncio
 import logging
 
+import httpx
 from sqlalchemy import text
 
 from app.core.database import SessionLocal
@@ -57,6 +59,19 @@ _SQL_RESET = text(
     UPDATE svitliachok_2po_4pgr
     SET    dynamic_cost = cost,
            is_blackout  = false
+    """
+)
+
+# ---------------------------------------------------------------------------
+# SQL — Layer 1: External API Blackouts
+# ---------------------------------------------------------------------------
+
+_SQL_EXTERNAL_API_BLACKOUT = text(
+    """
+    UPDATE svitliachok_2po_4pgr
+    SET    dynamic_cost = cost * 5.0,
+           is_blackout  = true
+    WHERE  osm_name = ANY(:dark_streets)
     """
 )
 
@@ -141,8 +156,22 @@ async def run_cost_update() -> None:
                 await db.execute(_SQL_RESET)
                 logger.debug("L0 reset done")
 
-                # L1 — external API (stub: no outages reported)
-                logger.debug("L1 external API skipped (not configured)")
+                # L1 — external API (DTEK live outages)
+                try:
+                    dark_streets = await fetch_dtek_outages()
+                    if dark_streets:
+                        res_l1 = await db.execute(
+                            _SQL_EXTERNAL_API_BLACKOUT, 
+                            {"dark_streets": list(dark_streets)}
+                        )
+                        logger.info(
+                            "L1 external API: %d dark streets found, %d edges marked", 
+                            len(dark_streets), res_l1.rowcount
+                        )
+                    else:
+                        logger.info("L1 external API: no dark streets found (or API failed)")
+                except Exception as e:
+                    logger.warning("L1 external API failed unexpectedly, skipping: %s", e)
 
                 # L2 — OSM lamp density
                 result = await db.execute(_SQL_LAMP_DENSITY)
@@ -163,3 +192,64 @@ async def run_cost_update() -> None:
         except Exception:
             logger.exception("Lighting cost update failed — transaction rolled back")
             raise
+
+
+async def fetch_dtek_outages() -> set[str]:
+    """
+    Fetches DTEK live outage data from svitlo-finder.xyz for the Kyiv area.
+    Because requesting the entire city at once causes the upstream server
+    to timeout, we split Kyiv into a 2x2 grid and fetch them concurrently.
+    
+    Returns a set of street names where AT LEAST ONE building is reported
+    as 'OFF' or 'DISCONNECTED'.
+    """
+    url = "https://svitlo-finder.xyz/api/v1/dtek/viewport"
+    # Approximate bounds for the densely populated areas of Kyiv
+    lat_min, lat_max = 50.35, 50.55
+    lon_min, lon_max = 30.35, 30.65
+    
+    grid_size = 2
+    tasks = []
+    
+    async with httpx.AsyncClient() as client:
+        for i in range(grid_size):
+            for j in range(grid_size):
+                l_min = lat_min + (lat_max - lat_min) / grid_size * i
+                l_max = lat_min + (lat_max - lat_min) / grid_size * (i + 1)
+                ln_min = lon_min + (lon_max - lon_min) / grid_size * j
+                ln_max = lon_min + (lon_max - lon_min) / grid_size * (j + 1)
+                
+                params = {
+                    "lat_bottom": l_min, "lat_top": l_max,
+                    "lon_left": ln_min, "lon_right": ln_max,
+                    "dsoId": 902, "city": "Київ"
+                }
+                tasks.append(client.get(url, params=params, timeout=30.0))
+        
+        # return_exceptions=True prevents one timeout from blowing up the whole batch
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+    dark_streets = set()
+    for res in results:
+        if isinstance(res, Exception):
+            logger.warning(f"DTEK API chunk request failed: {res}")
+            continue
+        if res.status_code != 200:
+            logger.warning(f"DTEK API returned status {res.status_code}")
+            continue
+            
+        try:
+            data = res.json()
+        except ValueError:
+            logger.warning("DTEK API returned invalid JSON")
+            continue
+            
+        # JSON structure: {"Street Name": {"12A": {"status": "OFF", ...}, ...}, ...}
+        for street, houses in data.items():
+            for house_info in houses.values():
+                if house_info.get("status") in ("OFF", "DISCONNECTED"):
+                    dark_streets.add(street)
+                    break  # one offline building is enough to flag the street
+                    
+    return dark_streets
+
