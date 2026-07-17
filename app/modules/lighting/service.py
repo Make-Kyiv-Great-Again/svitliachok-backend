@@ -78,29 +78,23 @@ _SQL_EXTERNAL_API_BLACKOUT = text(
 # ---------------------------------------------------------------------------
 # SQL — Layer 2: OSM lamp density
 #
-# For every edge whose ST_Centroid has no street lamp within LAMP_RADIUS_M:
+# For every edge that has no street lamp within roughly 30m:
 #   • dynamic_cost = GREATEST(current dynamic_cost, cost × DARK_MULTIPLIER)
 #   • is_blackout  = true
 #
 # GREATEST preserves a higher penalty set by Layer 1 if that layer is active.
-# ST_Centroid on the edge geometry is a fast approximation; for very long
-# edges the true closest point could differ, but city-block edges are short
-# enough that centroid works well.
+# We use geometry ST_DWithin with 0.0003 degrees (~33m at equator, ~25m in Kyiv) 
+# instead of geography/centroids to ensure it uses the GiST spatial indexes.
 # ---------------------------------------------------------------------------
 
 _SQL_LAMP_DENSITY = text(
     f"""
     UPDATE svitliachok_2po_4pgr AS e
-    SET    dynamic_cost = GREATEST(e.dynamic_cost, e.cost * {DARK_MULTIPLIER}),
-           is_blackout  = true
+    SET    dynamic_cost = GREATEST(e.dynamic_cost, e.cost * {DARK_MULTIPLIER})
     WHERE  NOT EXISTS (
         SELECT 1
         FROM   street_lamps sl
-        WHERE  ST_DWithin(
-                   sl.geom::geography,
-                   ST_Centroid(e.geom_way)::geography,
-                   {LAMP_RADIUS_M}
-               )
+        WHERE  ST_DWithin(sl.geom, e.geom_way, 0.0003)
     )
     """
 )

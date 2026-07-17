@@ -137,8 +137,11 @@ async def get_point_lighting(
             "penalty_ratio": None,
         }
 
+    # penalty_ratio of 3.0 means structurally dark, 5.0 means DTEK blackout
+    is_structurally_dark = row.penalty_ratio and row.penalty_ratio >= 3.0
+
     return {
-        "has_light": not row.is_blackout,
+        "has_light": not (row.is_blackout or is_structurally_dark),
         "source": "street_edge",
         "street_name": row.street_name,
         "distance_m": float(row.distance_m),
