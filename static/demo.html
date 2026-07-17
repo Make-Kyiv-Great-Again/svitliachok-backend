@@ -387,11 +387,8 @@ function buildPopupContent(data) {
 
 // ── Overlays ──────────────────────────────────────────────────────────────
 const getUserLocation = () => new Promise(resolve => {
-  if (!navigator.geolocation) return resolve({ lat: 50.450, lng: 30.523 });
-  navigator.geolocation.getCurrentPosition(
-    pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-    () => resolve({ lat: 50.450, lng: 30.523 }), { timeout: 5000 }
-  );
+  // Ignore real location for now and use mocked location in central Kyiv
+  resolve({ lat: 50.450, lng: 30.523 });
 });
 
 async function loadOverlays() {
