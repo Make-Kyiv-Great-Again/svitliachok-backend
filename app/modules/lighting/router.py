@@ -36,7 +36,7 @@ _SQL_DARK_STREETS = text(
     AND ST_DWithin(
         geom_way::geography,
         ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography,
-        5000
+        20000
     )
     """
 )
@@ -44,7 +44,7 @@ _SQL_DARK_STREETS = text(
 
 @router.get(
     "/dark-streets",
-    summary="Get GeoJSON of street segments currently in a blackout / low-light zone within 5km",
+    summary="Get GeoJSON of street segments currently in a blackout / low-light zone within 20km",
 )
 async def get_dark_streets(
     lat: float = Query(..., description="Latitude"),
@@ -53,7 +53,7 @@ async def get_dark_streets(
 ) -> dict:
     """
     Returns a **GeoJSON FeatureCollection** containing every street edge
-    within 5km whose `dynamic_cost` has been raised above its base `cost` value by
+    within 20km whose `dynamic_cost` has been raised above its base `cost` value by
     the lighting scheduler.
 
     Each Feature's `properties` include:
