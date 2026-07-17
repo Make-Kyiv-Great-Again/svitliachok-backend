@@ -9,6 +9,7 @@ Lifespan:
 
 import logging
 from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import AsyncGenerator
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -44,20 +45,18 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # ── Startup ──────────────────────────────────────────────────────────
-    logger.info("Starting APScheduler — lighting cost update every 2 minutes")
+    logger.info("Starting APScheduler — lighting cost update every 2 hours")
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
         run_cost_update,
         trigger="interval",
-        minutes=2,
+        hours=2,
         id="lighting_cost_update",
         replace_existing=True,
+        next_run_time=datetime.now(),   # fire immediately on startup (non-blocking)
     )
     scheduler.start()
-
-    # Run immediately so dark-streets data is ready without waiting 2 minutes
-    logger.info("Running initial lighting cost update…")
-    await run_cost_update()
+    logger.info("Initial lighting cost update queued (runs in background)…")
 
     yield  # ── Application running ──────────────────────────────────────
 
